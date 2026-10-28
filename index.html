@@ -1,0 +1,2872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Bus Route Management System | Digital Route Board</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fef2f2',
+              100: '#fee2e2',
+              200: '#fecaca',
+              500: '#ef4444',
+              600: '#dc2626',
+              700: '#b91c1c',
+              800: '#991b1b',
+              900: '#7f1d1d',
+            },
+            charcoal: {
+              800: '#1e242c',
+              850: '#171c22',
+              900: '#11151a',
+              950: '#0b0d10',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <!-- React 18, ReactDOM, Babel for in-browser execution -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .custom-shadow-card {
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+    }
+    .route-number-badge {
+      clip-path: polygon(0 0, 100% 0, 88% 100%, 0% 100%);
+    }
+    .badge-corner {
+      background: linear-gradient(135deg, var(--accent, #dc2626) 0%, #991b1b 100%);
+    }
+  </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-800 antialiased selection:bg-red-500 selection:text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // --- INITIAL DATA & SAMPLES ---
+    const DEFAULT_ROUTES = [
+      {
+        id: 'route-1a',
+        routeNumber: '1A',
+        routeName: 'Central Bus Terminus ↔ North University Campus',
+        source: 'Central Bus Terminus',
+        destination: 'North University Campus Gate 1',
+        category: 'Campus & University',
+        intermediateStops: [
+          'City Railway Station',
+          'Gandhi Square Market',
+          'Civil Hospital Chowk',
+          'Science Complex',
+          'North Campus Gate 1'
+        ],
+        morningTiming: '06:30 AM - 11:30 AM',
+        eveningTiming: '03:30 PM - 09:45 PM',
+        frequency: 'Every 15 mins',
+        busNumber: 'DL-01-AB-4021',
+        driverName: 'Rajesh Kumar',
+        driverPhone: '+91 98765 43210',
+        capacity: 52,
+        currentOccupancy: 'Medium',
+        status: 'On Time',
+        isVerified: true,
+        fare: '₹15 - ₹25',
+        totalDistanceKm: 18.5,
+        lastUpdated: '2026-10-28 18:00'
+      },
+      {
+        id: 'route-05',
+        routeNumber: '05',
+        routeName: 'South Ring Road ↔ Metro Interchange Hub',
+        source: 'South Ring Road Junction',
+        destination: 'Metro Interchange Hub',
+        category: 'Metro Feeder',
+        intermediateStops: [
+          'South Extension Phase 1',
+          'Ring Road Flyover',
+          'Electronic Hardware Park',
+          'Metro Gate 3'
+        ],
+        morningTiming: '07:00 AM - 12:00 PM',
+        eveningTiming: '04:00 PM - 10:00 PM',
+        frequency: 'Every 20 mins',
+        busNumber: 'KA-05-EX-8812',
+        driverName: 'S. Murugan',
+        driverPhone: '+91 98450 11223',
+        capacity: 45,
+        currentOccupancy: 'Low',
+        status: 'On Time',
+        isVerified: true,
+        fare: '₹20',
+        totalDistanceKm: 14.2,
+        lastUpdated: '2026-10-28 18:15'
+      },
+      {
+        id: 'route-12b',
+        routeNumber: '12B',
+        routeName: 'West Gate Hostel Complex ↔ Engineering & Science Block',
+        source: 'West Gate Hostel Complex',
+        destination: 'Engineering & Science Block',
+        category: 'Campus & University',
+        intermediateStops: [
+          'Boys Hostel Block A & B',
+          'Girls Hostel Block C',
+          'Central Library',
+          'Sports Stadium',
+          'Main Admin Building',
+          'Engineering Quadrangle'
+        ],
+        morningTiming: '07:45 AM - 01:00 PM',
+        eveningTiming: '02:00 PM - 08:30 PM',
+        frequency: 'Every 10 mins (Peak Hours)',
+        busNumber: 'MH-12-ST-1934',
+        driverName: 'Vikram Singh',
+        driverPhone: '+91 97110 55443',
+        capacity: 60,
+        currentOccupancy: 'Medium',
+        status: 'Departing Soon',
+        isVerified: true,
+        verificationNotes: 'Official Student Commute Shuttle — Free with Student ID',
+        fare: 'Free / Campus ID',
+        totalDistanceKm: 8.6,
+        lastUpdated: '2026-10-28 18:30'
+      },
+      {
+        id: 'route-17',
+        routeNumber: '17',
+        routeName: 'Old City Bazaar ↔ Eastern Bypass [Needs Verification]',
+        source: 'Old City Bazaar Clock Tower',
+        destination: 'Eastern Bypass Terminal',
+        category: 'City Express',
+        intermediateStops: [
+          'Clock Tower Chowk',
+          'Red Gate Market',
+          'Civil Lines (Uncertain on original board)',
+          'Eastern Bypass Overbridge'
+        ],
+        morningTiming: '06:45 AM - 11:00 AM',
+        eveningTiming: '04:30 PM - 08:00 PM',
+        frequency: 'Every 30 mins',
+        busNumber: 'UP-16-BX-3390',
+        driverName: 'Harish Chander',
+        driverPhone: '+91 98101 22334',
+        capacity: 48,
+        currentOccupancy: 'Full',
+        status: 'Delayed',
+        delayMinutes: 12,
+        isVerified: false,
+        verificationNotes: 'Civil Lines intermediate stop text and evening return frequency require physical board cross-verification.',
+        fare: '₹15 - ₹30',
+        totalDistanceKm: 22.0,
+        lastUpdated: '2026-10-28 17:45'
+      },
+      {
+        id: 'route-25c',
+        routeNumber: '25C',
+        routeName: 'IT Corridor / Cyber City ↔ International Airport T3',
+        source: 'IT Corridor Cyber Towers',
+        destination: 'International Airport Terminal 3',
+        category: 'City Express',
+        intermediateStops: [
+          'Cyber Towers Platform 2',
+          'Bio-Tech Innovation Hub',
+          'Express Highway Toll',
+          'Air Cargo Complex',
+          'Airport T3 Departures'
+        ],
+        morningTiming: '05:00 AM - 01:00 PM',
+        eveningTiming: '02:00 PM - 11:30 PM',
+        frequency: 'Every 25 mins',
+        busNumber: 'TS-09-UB-7744',
+        driverName: 'Anand Reddy',
+        driverPhone: '+91 99887 66554',
+        capacity: 40,
+        currentOccupancy: 'Medium',
+        status: 'In Transit',
+        isVerified: true,
+        fare: '₹60 - ₹90 (AC Low Floor)',
+        totalDistanceKm: 34.8,
+        lastUpdated: '2026-10-28 18:40'
+      },
+      {
+        id: 'route-33',
+        routeNumber: '33',
+        routeName: 'Suburban Sector 9 ↔ Government Secretariat [Needs Verification]',
+        source: 'Suburban Sector 9 Terminal',
+        destination: 'Government Secretariat Gate 4',
+        category: 'Suburban / Outstation',
+        intermediateStops: [
+          'Sector 9 Market',
+          'Community Health Center',
+          'Vidhan Bhavan (Platform 3? Unclear on board)',
+          'Secretariat Gate 4'
+        ],
+        morningTiming: '08:00 AM - 11:30 AM',
+        eveningTiming: '04:30 PM - 07:00 PM',
+        frequency: 'Every 45 mins',
+        busNumber: 'TN-01-GA-5621',
+        driverName: 'K. Raman',
+        driverPhone: '+91 94440 98765',
+        capacity: 50,
+        currentOccupancy: 'Low',
+        status: 'On Time',
+        isVerified: false,
+        verificationNotes: 'Original route board text partially faded around Vidhan Bhavan interchange platform number.',
+        fare: '₹25',
+        totalDistanceKm: 26.4,
+        lastUpdated: '2026-10-28 18:10'
+      },
+      {
+        id: 'route-42',
+        routeNumber: '42',
+        routeName: 'Staff Quarters & Faculty Enclave ↔ Admin Quad',
+        source: 'Staff Quarters & Faculty Enclave',
+        destination: 'University Main Admin Building',
+        category: 'Campus & University',
+        intermediateStops: [
+          'Faculty Enclave Gate A',
+          'Campus Staff School',
+          'University Guest House',
+          'Faculty Club & Canteen',
+          'Senate Hall / Admin Quad'
+        ],
+        morningTiming: '08:15 AM - 10:30 AM',
+        eveningTiming: '04:45 PM - 06:15 PM',
+        frequency: 'Every 30 mins',
+        busNumber: 'HR-26-ED-6502',
+        driverName: 'Mahender Pal',
+        driverPhone: '+91 98188 77665',
+        capacity: 35,
+        currentOccupancy: 'Low',
+        status: 'On Time',
+        isVerified: true,
+        verificationNotes: 'Dedicated Faculty & Staff Shuttle with priority boarding.',
+        fare: 'Staff Pass / Free',
+        totalDistanceKm: 7.2,
+        lastUpdated: '2026-10-28 18:20'
+      },
+      {
+        id: 'route-58',
+        routeNumber: '58',
+        routeName: 'Central Hospital ↔ Outlying Residential Enclave',
+        source: 'Central Government Hospital',
+        destination: 'Green Valley Enclave Phase 2',
+        category: 'Suburban / Outstation',
+        intermediateStops: [
+          'Emergency Trauma Center',
+          'Pharmacy Circle',
+          'Botanical Gardens',
+          'Lake View Highway',
+          'Enclave Phase 1 & 2'
+        ],
+        morningTiming: '06:00 AM - 01:00 PM',
+        eveningTiming: '02:00 PM - 10:30 PM',
+        frequency: 'Every 20 mins',
+        busNumber: 'WB-02-HP-4419',
+        driverName: 'Subhash Roy',
+        driverPhone: '+91 98300 45678',
+        capacity: 52,
+        currentOccupancy: 'Medium',
+        status: 'On Time',
+        isVerified: true,
+        fare: '₹20 - ₹35',
+        totalDistanceKm: 21.0,
+        lastUpdated: '2026-10-28 18:00'
+      },
+      {
+        id: 'route-70',
+        routeNumber: '70',
+        routeName: 'Night Owl Express (Central Hub ↔ Main Railway Junction)',
+        source: 'Central Transport Hub',
+        destination: 'Main Railway Junction Platform 1',
+        category: 'Night Service',
+        intermediateStops: [
+          'Central Depot Night Stand',
+          'City Center Roundabout',
+          'Metro Station Gate 2',
+          'Railway Station South Exit'
+        ],
+        morningTiming: '03:30 AM - 05:30 AM',
+        eveningTiming: '10:00 PM - 03:00 AM',
+        frequency: 'Every 60 mins',
+        busNumber: 'GJ-01-NX-9988',
+        driverName: 'Praveen Dave',
+        driverPhone: '+91 98250 88990',
+        capacity: 45,
+        currentOccupancy: 'Low',
+        status: 'On Time',
+        isVerified: true,
+        verificationNotes: 'Special Night Service with security escort onboard.',
+        fare: '₹35 flat',
+        totalDistanceKm: 16.5,
+        lastUpdated: '2026-10-28 18:35'
+      },
+      {
+        id: 'route-102',
+        routeNumber: '102',
+        routeName: 'Coastal Link Beach Road ↔ North Industrial Zone [Needs Verification]',
+        source: 'Lighthouse Beach Road',
+        destination: 'North Industrial Area Gate 2',
+        category: 'City Express',
+        intermediateStops: [
+          'Lighthouse Promenade',
+          'Old Harbour Gate',
+          'Fish Market Chowk (Faded on board)',
+          'Industrial Sector Gate 2'
+        ],
+        morningTiming: '06:15 AM - 12:00 PM',
+        eveningTiming: '03:30 PM - 09:00 PM',
+        frequency: 'Every 30 mins',
+        busNumber: 'KL-07-CS-2211',
+        driverName: 'Jose Thomas',
+        driverPhone: '+91 98460 33445',
+        capacity: 55,
+        currentOccupancy: 'Full',
+        status: 'In Transit',
+        isVerified: false,
+        verificationNotes: 'Intermediate stop between Harbour Gate and Industrial Area has water damage on physical route board. Needs verification.',
+        fare: '₹20 - ₹40',
+        totalDistanceKm: 29.2,
+        lastUpdated: '2026-10-28 17:50'
+      }
+    ];
+
+    const DEFAULT_ANNOUNCEMENTS = [
+      {
+        id: 'ann-1',
+        title: 'Semester Final Examinations — Additional Bus Services on Route 12B',
+        content: 'Special shuttle services will operate at 10-minute intervals between West Gate Hostel Complex and Engineering Blocks from 07:30 AM to 06:30 PM. Students must carry valid University Smart Cards.',
+        date: '28 Oct 2026',
+        author: 'Chief Transport Officer',
+        priority: 'urgent',
+        targetAudience: 'students'
+      },
+      {
+        id: 'ann-2',
+        title: 'Staff Quarters Shuttle (Route 42) Revised Evening Schedule',
+        content: 'Due to road resurfacing near the University Guest House, Route 42 evening departures will depart 10 minutes earlier from the Admin Quadrangle.',
+        date: '27 Oct 2026',
+        author: 'Faculty Transit Committee',
+        priority: 'important',
+        targetAudience: 'teachers'
+      },
+      {
+        id: 'ann-3',
+        title: 'Digital Route Board System Launch & Verification Notice',
+        content: 'The Transport Office has digitized the physical route boards. Routes marked with [Needs Verification] are currently undergoing field auditing. Please report discrepancies using the feedback tool.',
+        date: '26 Oct 2026',
+        author: 'System Administrator',
+        priority: 'normal',
+        targetAudience: 'all'
+      }
+    ];
+
+    const DEFAULT_THEME = {
+      accentColor: '#dc2626', // Classic transport red
+      backgroundImageUrl: null,
+      backgroundPlacement: 'dashboard',
+      brightness: 100,
+      contrast: 100,
+      saturation: 100,
+      hueRotate: 0,
+      filterPreset: 'none',
+      imagePosition: 'center',
+      imageFit: 'cover',
+      overlayOpacity: 40,
+    };
+
+    // --- SVG ICONS FOR FAST HIGH-PERFORMANCE RENDERING ---
+    const Icons = {
+      Menu: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      ),
+      ThreeDots: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="5" r="1.5" fill="currentColor" />
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          <circle cx="12" cy="19" r="1.5" fill="currentColor" />
+        </svg>
+      ),
+      Shield: () => (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+      GraduationCap: () => (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14v7" />
+        </svg>
+      ),
+      BookOpen: () => (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      ),
+      Search: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      ),
+      Clock: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" strokeWidth="2" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6l4 2" />
+        </svg>
+      ),
+      Heart: ({ filled }) => (
+        <svg className={`w-5 h-5 transition-transform duration-200 active:scale-125 ${filled ? 'fill-red-600 text-red-600' : 'text-slate-400 hover:text-red-500'}`} fill={filled ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      ),
+      Bus: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h8m-8 4h8m-9 7h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zm1 3v-3m8 3v-3M7 14h.01M17 14h.01" />
+        </svg>
+      ),
+      MapPin: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      CheckBadge: () => (
+        <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+      ),
+      AlertTriangle: () => (
+        <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+      Plus: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+        </svg>
+      ),
+      Edit: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      ),
+      Trash: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      ),
+      Phone: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+      ),
+      Palette: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4 5 5 0 015-5c1.1 0 2.1.4 2.8 1.2.7.7 1.2 1.7 1.2 2.8a4 4 0 01-4 4zm0 0a4 4 0 004-4 4 4 0 014-4c1.1 0 2.1.4 2.8 1.2.7.7 1.2 1.7 1.2 2.8a4 4 0 01-4 4h-8zM12 3a9 9 0 00-9 9c0 1.5.4 3 1.2 4.2" />
+        </svg>
+      ),
+      Settings: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      LogOut: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      ),
+      Bell: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      ),
+      Google: () => (
+        <svg className="w-5 h-5" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+        </svg>
+      )
+    };
+
+    // --- APPLICATION ROOT COMPONENT ---
+    function App() {
+      // Role & Auth State
+      const [selectedRole, setSelectedRole] = useState(null); // 'admin' | 'student' | 'teacher'
+      const [currentUser, setCurrentUser] = useState(null);
+      const [showLoginModal, setShowLoginModal] = useState(false);
+      const [loginError, setLoginError] = useState(null);
+      const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+      // UI View State
+      const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'routes' | 'announcements' | 'favorites' | 'settings'
+      const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+      const [searchQuery, setSearchQuery] = useState('');
+      const [selectedCategory, setSelectedCategory] = useState('All');
+      const [statusFilter, setStatusFilter] = useState('All');
+
+      // Modals
+      const [viewRouteDetails, setViewRouteDetails] = useState(null);
+      const [editingRoute, setEditingRoute] = useState(null);
+      const [isAddRouteModalOpen, setIsAddRouteModalOpen] = useState(false);
+      const [routeToDelete, setRouteToDelete] = useState(null);
+      const [showAppearanceModal, setShowAppearanceModal] = useState(false);
+      const [showFirebaseModal, setShowFirebaseModal] = useState(false);
+
+      // Data Collections (Persistent with localStorage + ready for Firestore)
+      const [routes, setRoutes] = useState(() => {
+        const saved = localStorage.getItem('smart_bus_routes');
+        return saved ? JSON.parse(saved) : DEFAULT_ROUTES;
+      });
+
+      const [announcements, setAnnouncements] = useState(() => {
+        const saved = localStorage.getItem('smart_bus_announcements');
+        return saved ? JSON.parse(saved) : DEFAULT_ANNOUNCEMENTS;
+      });
+
+      const [favorites, setFavorites] = useState(() => {
+        const saved = localStorage.getItem('smart_bus_favorites');
+        return saved ? JSON.parse(saved) : ['route-12b'];
+      });
+
+      const [theme, setTheme] = useState(() => {
+        const saved = localStorage.getItem('smart_bus_theme');
+        return saved ? JSON.parse(saved) : DEFAULT_THEME;
+      });
+
+      const [toastMessage, setToastMessage] = useState(null);
+
+      // Persist changes
+      useEffect(() => {
+        localStorage.setItem('smart_bus_routes', JSON.stringify(routes));
+      }, [routes]);
+
+      useEffect(() => {
+        localStorage.setItem('smart_bus_favorites', JSON.stringify(favorites));
+      }, [favorites]);
+
+      useEffect(() => {
+        localStorage.setItem('smart_bus_theme', JSON.stringify(theme));
+      }, [theme]);
+
+      // Toast Notification Helper
+      const showToast = (text, type = 'success') => {
+        setToastMessage({ text, type });
+        setTimeout(() => setToastMessage(null), 3500);
+      };
+
+      // Live Digital Clock & IST Date Engine
+      const [timeState, setTimeState] = useState(() => calculateISTTime());
+
+      function calculateISTTime() {
+        const now = new Date();
+        // Asia/Kolkata options
+        const timeFormatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+
+        const dateFormatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Kolkata',
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        const parts = timeFormatter.format(now);
+        const dateStr = dateFormatter.format(now);
+
+        // Calculate hours in IST for greeting
+        const istHours = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).getHours();
+        let greeting = 'Good Evening';
+        if (istHours >= 4 && istHours < 12) greeting = 'Good Morning';
+        else if (istHours >= 12 && istHours < 17) greeting = 'Good Afternoon';
+        else if (istHours >= 17 && istHours < 22) greeting = 'Good Evening';
+        else greeting = 'Good Night';
+
+        return {
+          timeStr: parts,
+          dateStr: dateStr,
+          greeting: greeting
+        };
+      }
+
+      useEffect(() => {
+        const timer = setInterval(() => {
+          setTimeState(calculateISTTime());
+        }, 1000);
+        return () => clearInterval(timer);
+      }, []);
+
+      // Handlers for Routes
+      const toggleFavorite = (id, e) => {
+        e && e.stopPropagation();
+        setFavorites(prev => {
+          const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+          showToast(prev.includes(id) ? 'Removed from favourites' : 'Added to favourites ❤️');
+          return next;
+        });
+      };
+
+      const handleSaveRoute = (routeData) => {
+        if (editingRoute) {
+          setRoutes(prev => prev.map(r => r.id === editingRoute.id ? { ...routeData, id: r.id, lastUpdated: new Date().toISOString() } : r));
+          showToast(`Route ${routeData.routeNumber} updated successfully!`);
+          setEditingRoute(null);
+        } else {
+          const newRoute = {
+            ...routeData,
+            id: 'route-' + Date.now(),
+            lastUpdated: new Date().toISOString()
+          };
+          setRoutes(prev => [newRoute, ...prev]);
+          showToast(`Route ${routeData.routeNumber} added to live board!`);
+          setIsAddRouteModalOpen(false);
+        }
+      };
+
+      const confirmDeleteRoute = () => {
+        if (!routeToDelete) return;
+        setRoutes(prev => prev.filter(r => r.id !== routeToDelete.id));
+        showToast(`Route ${routeToDelete.routeNumber} deleted`);
+        setRouteToDelete(null);
+        if (viewRouteDetails?.id === routeToDelete.id) {
+          setViewRouteDetails(null);
+        }
+      };
+
+      // Filtered Routes
+      const filteredRoutes = useMemo(() => {
+        return routes.filter(route => {
+          if (activeTab === 'favorites' && !favorites.includes(route.id)) {
+            return false;
+          }
+          if (selectedCategory !== 'All' && route.category !== selectedCategory) {
+            return false;
+          }
+          if (statusFilter === 'Verified' && !route.isVerified) return false;
+          if (statusFilter === 'Unverified' && route.isVerified) return false;
+          if (statusFilter === 'On Time' && route.status !== 'On Time') return false;
+          if (statusFilter === 'Delayed' && route.status !== 'Delayed') return false;
+
+          if (searchQuery.trim() !== '') {
+            const q = searchQuery.toLowerCase();
+            const matchNumber = route.routeNumber.toLowerCase().includes(q);
+            const matchName = route.routeName.toLowerCase().includes(q);
+            const matchSource = route.source.toLowerCase().includes(q);
+            const matchDest = route.destination.toLowerCase().includes(q);
+            const matchStops = route.intermediateStops.some(s => s.toLowerCase().includes(q));
+            const matchBus = route.busNumber.toLowerCase().includes(q);
+            const matchDriver = route.driverName.toLowerCase().includes(q);
+            return matchNumber || matchName || matchSource || matchDest || matchStops || matchBus || matchDriver;
+          }
+          return true;
+        });
+      }, [routes, favorites, activeTab, selectedCategory, statusFilter, searchQuery]);
+
+      // CSS Filter style string from appearance settings
+      const getFilterStyle = () => {
+        let filters = `brightness(${theme.brightness}%) contrast(${theme.contrast}%) saturate(${theme.saturation}%) hue-rotate(${theme.hueRotate}deg)`;
+        if (theme.filterPreset === 'grayscale') filters += ' grayscale(100%)';
+        else if (theme.filterPreset === 'vintage') filters += ' sepia(70%) contrast(110%)';
+        else if (theme.filterPreset === 'warm') filters += ' sepia(30%) saturate(140%) hue-rotate(-15deg)';
+        else if (theme.filterPreset === 'cool') filters += ' hue-rotate(180deg) saturate(90%)';
+        else if (theme.filterPreset === 'high-contrast') filters += ' contrast(160%) brightness(110%)';
+        return filters;
+      };
+
+      // Apply Accent Color Variable
+      useEffect(() => {
+        document.documentElement.style.setProperty('--accent', theme.accentColor || '#dc2626');
+      }, [theme.accentColor]);
+
+      // Check if user is logged in
+      if (!currentUser) {
+        return (
+          <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between relative overflow-hidden font-sans">
+            {/* Ambient Background Glow */}
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-red-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-red-800/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            {/* Top Bar on Role Selection */}
+            <header className="w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between z-10">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center shadow-lg shadow-red-900/40">
+                  <Icons.Bus />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    SMART ROUTE <span className="text-xs px-2 py-0.5 rounded bg-red-600/30 text-red-400 font-mono font-semibold border border-red-500/30">DIGITAL BOARD</span>
+                  </h1>
+                  <p className="text-xs text-slate-400">Intelligent Transit & Route Management System</p>
+                </div>
+              </div>
+
+              {/* Live IST Clock Badge */}
+              <div className="hidden sm:flex items-center space-x-4 bg-slate-800/80 backdrop-blur border border-slate-700/60 px-4 py-2 rounded-xl">
+                <div className="text-right">
+                  <div className="text-xs text-slate-400 font-medium">{timeState.dateStr}</div>
+                  <div className="text-sm font-bold font-mono text-white tracking-wider flex items-center justify-end gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    {timeState.timeStr} <span className="text-[10px] text-red-400">IST</span>
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            {/* STEP 1: WHO ARE YOU? ROLE SELECTION SCREEN */}
+            <main className="w-full max-w-4xl mx-auto px-6 py-8 flex-1 flex flex-col justify-center items-center z-10">
+              <div className="text-center max-w-2xl mb-10">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold mb-4 tracking-wide uppercase">
+                  <span>Authorized Transit Access Portal</span>
+                </div>
+                <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-3">
+                  Who are you?
+                </h2>
+                <p className="text-slate-300 text-base md:text-lg">
+                  Welcome to Smart Bus Route Management. Select your portal role to access tailored transit schedules, live boards, and management controls.
+                </p>
+              </div>
+
+              {/* 3 Clickable Role Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-10">
+                {/* Admin Card */}
+                <div
+                  onClick={() => setSelectedRole('admin')}
+                  className={`cursor-pointer rounded-2xl p-6 transition-all duration-300 relative group border ${
+                    selectedRole === 'admin'
+                      ? 'bg-gradient-to-b from-red-950/80 to-slate-900 border-red-500 shadow-xl shadow-red-950/50 scale-[1.02] ring-2 ring-red-500/50'
+                      : 'bg-slate-800/50 hover:bg-slate-800/90 border-slate-700/70 hover:border-slate-500'
+                  }`}
+                >
+                  {selectedRole === 'admin' && (
+                    <div className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full shadow-lg shadow-red-500/80 animate-ping"></div>
+                  )}
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 ${
+                    selectedRole === 'admin' ? 'bg-red-600 text-white shadow-lg shadow-red-600/40' : 'bg-slate-700/60 text-red-400 group-hover:bg-red-600/20'
+                  }`}>
+                    <Icons.Shield />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-between">
+                    Administrator
+                    <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-red-600/20 text-red-400 border border-red-500/30">Control</span>
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Full route management authority: add, edit, or delete official bus routes, verify physical board data, publish notices, and adjust theme branding.
+                  </p>
+                  <div className="mt-5 pt-4 border-t border-slate-700/60 flex items-center text-xs font-semibold text-red-400">
+                    <span>Manage All Routes & Board</span>
+                    <span className="ml-auto">→</span>
+                  </div>
+                </div>
+
+                {/* Student Card */}
+                <div
+                  onClick={() => setSelectedRole('student')}
+                  className={`cursor-pointer rounded-2xl p-6 transition-all duration-300 relative group border ${
+                    selectedRole === 'student'
+                      ? 'bg-gradient-to-b from-blue-950/80 to-slate-900 border-blue-500 shadow-xl shadow-blue-950/50 scale-[1.02] ring-2 ring-blue-500/50'
+                      : 'bg-slate-800/50 hover:bg-slate-800/90 border-slate-700/70 hover:border-slate-500'
+                  }`}
+                >
+                  {selectedRole === 'student' && (
+                    <div className="absolute top-3 right-3 w-3 h-3 bg-blue-500 rounded-full shadow-lg shadow-blue-500/80 animate-ping"></div>
+                  )}
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 ${
+                    selectedRole === 'student' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40' : 'bg-slate-700/60 text-blue-400 group-hover:bg-blue-600/20'
+                  }`}>
+                    <Icons.GraduationCap />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-between">
+                    Student
+                    <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-blue-600/20 text-blue-400 border border-blue-500/30">Commuter</span>
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Access campus shuttles, city express routes, view assigned hostel buses, star favorite routes, and stay updated with student transport alerts.
+                  </p>
+                  <div className="mt-5 pt-4 border-t border-slate-700/60 flex items-center text-xs font-semibold text-blue-400">
+                    <span>View Assigned & Campus Routes</span>
+                    <span className="ml-auto">→</span>
+                  </div>
+                </div>
+
+                {/* Teacher / Faculty Card */}
+                <div
+                  onClick={() => setSelectedRole('teacher')}
+                  className={`cursor-pointer rounded-2xl p-6 transition-all duration-300 relative group border ${
+                    selectedRole === 'teacher'
+                      ? 'bg-gradient-to-b from-emerald-950/80 to-slate-900 border-emerald-500 shadow-xl shadow-emerald-950/50 scale-[1.02] ring-2 ring-emerald-500/50'
+                      : 'bg-slate-800/50 hover:bg-slate-800/90 border-slate-700/70 hover:border-slate-500'
+                  }`}
+                >
+                  {selectedRole === 'teacher' && (
+                    <div className="absolute top-3 right-3 w-3 h-3 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/80 animate-ping"></div>
+                  )}
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 ${
+                    selectedRole === 'teacher' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/40' : 'bg-slate-700/60 text-emerald-400 group-hover:bg-emerald-600/20'
+                  }`}>
+                    <Icons.BookOpen />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-between">
+                    Teacher / Faculty
+                    <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-400 border border-emerald-500/30">Faculty</span>
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Access faculty staff quarters shuttles, priority timetables, emergency transport contacts, and institutional commute advisories.
+                  </p>
+                  <div className="mt-5 pt-4 border-t border-slate-700/60 flex items-center text-xs font-semibold text-emerald-400">
+                    <span>Access Staff Express & Notices</span>
+                    <span className="ml-auto">→</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-md">
+                <button
+                  disabled={!selectedRole}
+                  onClick={() => {
+                    setLoginError(null);
+                    setShowLoginModal(true);
+                  }}
+                  className={`w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-2 shadow-lg ${
+                    selectedRole
+                      ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white shadow-red-700/40 scale-100 hover:scale-[1.01] active:scale-[0.98]'
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                  }`}
+                >
+                  <span>Continue to {selectedRole ? selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1) : ''} Portal</span>
+                  <span>→</span>
+                </button>
+              </div>
+
+              <div className="mt-6 flex items-center gap-4 text-xs text-slate-400">
+                <button
+                  onClick={() => setShowFirebaseModal(true)}
+                  className="hover:text-red-400 underline underline-offset-4 transition-colors"
+                >
+                  Configure Firebase Credentials
+                </button>
+                <span>•</span>
+                <span>Asia/Kolkata (IST) Live Synchronization</span>
+              </div>
+            </main>
+
+            {/* Bottom Footer */}
+            <footer className="w-full text-center py-6 text-xs text-slate-400 border-t border-slate-800/80">
+              Smart Bus Route Management System • Inspired by Traditional Route Boards • Built with React, Tailwind & Firebase
+            </footer>
+
+            {/* STEP 2 & 3: ROLE-SPECIFIC LOGIN MODAL */}
+            {showLoginModal && (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+                  {/* Modal Header */}
+                  <div className="p-6 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-b border-slate-800 flex items-center justify-between">
+                    <button
+                      onClick={() => setShowLoginModal(false)}
+                      className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"
+                    >
+                      <span>←</span> Back to Role Selection
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded ${
+                        selectedRole === 'admin' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                        selectedRole === 'student' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                        'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      }`}>
+                        {selectedRole} Portal
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-8">
+                    <div className="text-center mb-6">
+                      <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${
+                        selectedRole === 'admin' ? 'bg-red-600/20 text-red-500 border border-red-500/30' :
+                        selectedRole === 'student' ? 'bg-blue-600/20 text-blue-500 border border-blue-500/30' :
+                        'bg-emerald-600/20 text-emerald-500 border border-emerald-500/30'
+                      }`}>
+                        {selectedRole === 'admin' ? <Icons.Shield /> : selectedRole === 'student' ? <Icons.GraduationCap /> : <Icons.BookOpen />}
+                      </div>
+                      <h3 className="text-2xl font-bold text-white">
+                        {selectedRole === 'admin' ? 'Administrator Login' : selectedRole === 'student' ? 'Student Commuter Login' : 'Faculty / Teacher Login'}
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Sign in with your authorized Google Account or institutional credentials
+                      </p>
+                    </div>
+
+                    {loginError && (
+                      <div className="mb-6 p-4 rounded-xl bg-red-950/80 border border-red-800 text-red-200 text-xs flex items-start gap-3">
+                        <Icons.AlertTriangle />
+                        <div>
+                          <p className="font-semibold text-red-300">Access Restricted</p>
+                          <p className="mt-0.5 text-red-200/90">{loginError}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Google Sign-In Button */}
+                    <button
+                      disabled={isAuthenticating}
+                      onClick={() => handleGoogleLogin(selectedRole)}
+                      className="w-full py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-3 transition-all duration-200 shadow-md hover:shadow-lg active:scale-[0.99] mb-4"
+                    >
+                      <Icons.Google />
+                      <span>{isAuthenticating ? 'Connecting to Google...' : 'Continue with Google'}</span>
+                    </button>
+
+                    <div className="flex items-center my-6">
+                      <div className="flex-1 border-t border-slate-800"></div>
+                      <span className="px-3 text-[11px] uppercase tracking-wider text-slate-400 font-mono">or test account access</span>
+                      <div className="flex-1 border-t border-slate-800"></div>
+                    </div>
+
+                    {/* Quick Role-Specific Direct Demo Login */}
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => handleQuickLogin(selectedRole)}
+                        className={`w-full py-3 px-4 rounded-xl text-xs font-semibold flex items-center justify-between border transition-all ${
+                          selectedRole === 'admin' ? 'bg-red-950/30 hover:bg-red-900/40 text-red-300 border-red-800/60' :
+                          selectedRole === 'student' ? 'bg-blue-950/30 hover:bg-blue-900/40 text-blue-300 border-blue-800/60' :
+                          'bg-emerald-950/30 hover:bg-emerald-900/40 text-emerald-300 border-emerald-800/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                          <span>Quick Sign In as Verified {selectedRole.toUpperCase()}</span>
+                        </div>
+                        <span>Enter Dashboard →</span>
+                      </button>
+
+                      <div className="bg-slate-800/50 rounded-xl p-3 text-[11px] text-slate-400 border border-slate-800">
+                        <p className="font-semibold text-slate-300 mb-1">Role Permission Enforcement:</p>
+                        <ul className="list-disc list-inside space-y-0.5 text-slate-400">
+                          {selectedRole === 'admin' ? (
+                            <>
+                              <li>Full Route Edit, Delete & Creation capabilities</li>
+                              <li>Route Verification auditor</li>
+                              <li>Branding & background image customization</li>
+                            </>
+                          ) : selectedRole === 'student' ? (
+                            <>
+                              <li>Dedicated "My Assigned Route" card (Route 12B)</li>
+                              <li>Student exam special buses and notices</li>
+                              <li>Star favourite routes for quick view</li>
+                            </>
+                          ) : (
+                            <>
+                              <li>Staff quarters priority shuttle (Route 42)</li>
+                              <li>Faculty transit advisories</li>
+                              <li>Direct transport officer contacts</li>
+                            </>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="px-8 py-4 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                    <button
+                      onClick={() => setShowFirebaseModal(true)}
+                      className="text-red-400 hover:underline"
+                    >
+                      Firebase Setup Guide
+                    </button>
+                    <span>Secure Auth Session</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Firebase Config Modal */}
+            {showFirebaseModal && (
+              <FirebaseConfigModal onClose={() => setShowFirebaseModal(false)} showToast={showToast} />
+            )}
+          </div>
+        );
+      }
+
+      // LOGIN LOGIC
+      function handleGoogleLogin(role) {
+        setIsAuthenticating(true);
+        setLoginError(null);
+
+        // Attempt actual Firebase popup if configured
+        const storedConfig = localStorage.getItem('smart_bus_firebase_config');
+        if (storedConfig) {
+          try {
+            // Dynamic Firebase Auth execution if available in window
+            if (window.firebase && window.firebase.auth) {
+              const provider = new window.firebase.auth.GoogleAuthProvider();
+              window.firebase.auth().signInWithPopup(provider)
+                .then(result => {
+                  const user = result.user;
+                  // Store authenticated profile
+                  setCurrentUser({
+                    uid: user.uid,
+                    displayName: user.displayName || 'Authorized User',
+                    email: user.email,
+                    photoURL: user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${user.displayName || 'User'}`,
+                    role: role,
+                    assignedRouteId: role === 'student' ? 'route-12b' : role === 'teacher' ? 'route-42' : null
+                  });
+                  setIsAuthenticating(false);
+                  setShowLoginModal(false);
+                  showToast(`Welcome back, ${user.displayName}! Signed in as ${role.toUpperCase()}`);
+                })
+                .catch(err => {
+                  setIsAuthenticating(false);
+                  setLoginError(err.message || 'Google Sign-in failed. Please verify authorized domains in Firebase Console.');
+                });
+              return;
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+
+        // Informative guidance if Firebase credentials haven't been entered yet
+        setTimeout(() => {
+          setIsAuthenticating(false);
+          // Auto fall-back to simulated Google identity with role checking
+          const simulatedGoogleUser = {
+            uid: 'google-' + Math.random().toString(36).substring(7),
+            displayName: role === 'admin' ? 'Dr. Ramesh Sharma (Admin)' : role === 'student' ? 'Aarav Patel (Student)' : 'Prof. Sunita Menon (Faculty)',
+            email: role === 'admin' ? 'admin.transport@university.edu.in' : role === 'student' ? 'aarav.2024@university.edu.in' : 's.menon@university.edu.in',
+            photoURL: role === 'admin' 
+              ? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
+              : role === 'student'
+              ? 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80'
+              : 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+            role: role,
+            assignedRouteId: role === 'student' ? 'route-12b' : role === 'teacher' ? 'route-42' : null
+          };
+
+          setCurrentUser(simulatedGoogleUser);
+          setShowLoginModal(false);
+          showToast(`Signed in with Google Account (${simulatedGoogleUser.email})`);
+        }, 800);
+      }
+
+      function handleQuickLogin(role) {
+        const testUser = {
+          uid: 'user-' + role + '-001',
+          displayName: role === 'admin' ? 'Chief Transport Officer' : role === 'student' ? 'Rahul Sharma (Roll #409)' : 'Prof. Ananya Sen (Dept. Physics)',
+          email: `${role}@smartbus.internal`,
+          photoURL: role === 'admin'
+            ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
+            : role === 'student'
+            ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+          role: role,
+          assignedRouteId: role === 'student' ? 'route-12b' : role === 'teacher' ? 'route-42' : null
+        };
+        setCurrentUser(testUser);
+        setShowLoginModal(false);
+        showToast(`Signed in as ${role.toUpperCase()} • Welcome!`);
+      }
+
+      function handleLogout() {
+        setCurrentUser(null);
+        setSelectedRole(null);
+        setIsSidebarOpen(false);
+        showToast('Logged out successfully');
+      }
+
+      // --- AUTHENTICATED DASHBOARD VIEW ---
+      return (
+        <div 
+          className="min-h-screen flex flex-col font-sans transition-colors relative selection:bg-red-600 selection:text-white"
+          style={{
+            backgroundColor: '#F8FAFC',
+            backgroundImage: (theme.backgroundImageUrl && theme.backgroundPlacement === 'dashboard') 
+              ? `url(${theme.backgroundImageUrl})` 
+              : 'none',
+            backgroundPosition: theme.imagePosition,
+            backgroundSize: theme.imageFit,
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed',
+          }}
+        >
+          {/* Background Overlay for Readability if user applied an image */}
+          {theme.backgroundImageUrl && theme.backgroundPlacement === 'dashboard' && (
+            <div 
+              className="fixed inset-0 pointer-events-none z-0" 
+              style={{ 
+                backgroundColor: '#0F172A', 
+                opacity: theme.overlayOpacity / 100,
+                backdropFilter: getFilterStyle()
+              }}
+            ></div>
+          )}
+
+          {/* Toast Notification Floating */}
+          {toastMessage && (
+            <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom duration-300">
+              <div className={`px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-semibold border ${
+                toastMessage.type === 'error'
+                  ? 'bg-red-900/90 text-red-100 border-red-700'
+                  : 'bg-slate-900/95 text-white border-slate-700'
+              }`}>
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                <span>{toastMessage.text}</span>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              SECTION 1: MAIN DASHBOARD HEADER
+              ======================================================== */}
+          <header 
+            className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-sm transition-all"
+            style={{
+              backgroundImage: (theme.backgroundImageUrl && theme.backgroundPlacement === 'header') 
+                ? `url(${theme.backgroundImageUrl})` 
+                : 'none',
+              backgroundPosition: theme.imagePosition,
+              backgroundSize: theme.imageFit,
+            }}
+          >
+            {theme.backgroundImageUrl && theme.backgroundPlacement === 'header' && (
+              <div 
+                className="absolute inset-0 pointer-events-none z-0 bg-slate-950" 
+                style={{ opacity: theme.overlayOpacity / 100 }}
+              ></div>
+            )}
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between relative z-10">
+              {/* Left Side: Three-dot hamburger, Profile Icon, Name, Date Underneath */}
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                {/* Three-dot Hamburger Menu Icon */}
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  aria-label="Open Navigation Menu"
+                  className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-700 hover:text-red-600 transition-colors border border-transparent hover:border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-500/30"
+                  title="Menu"
+                >
+                  <Icons.ThreeDots />
+                </button>
+
+                {/* Profile Avatar */}
+                <div className="relative group cursor-pointer" onClick={() => setActiveTab('settings')}>
+                  <img
+                    src={currentUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser.displayName}`}
+                    alt={currentUser.displayName}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-red-600 shadow-sm transition-transform group-hover:scale-105"
+                  />
+                  <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                    currentUser.role === 'admin' ? 'bg-red-600' : currentUser.role === 'student' ? 'bg-blue-600' : 'bg-emerald-600'
+                  }`}></span>
+                </div>
+
+                {/* Profile Name & Date Section Underneath */}
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm sm:text-base font-bold text-slate-900 tracking-tight leading-none">
+                      {currentUser.displayName}
+                    </span>
+                    <span className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full ${
+                      currentUser.role === 'admin' ? 'bg-red-100 text-red-700 border border-red-300' :
+                      currentUser.role === 'student' ? 'bg-blue-100 text-blue-700 border border-blue-300' :
+                      'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                    }`}>
+                      {currentUser.role}
+                    </span>
+                  </div>
+
+                  {/* Below profile section: current date automatically */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-slate-500 font-medium">
+                      {timeState.dateStr}
+                    </span>
+                    <span className="hidden md:inline-block text-[11px] text-slate-400">•</span>
+                    <span className="hidden md:inline-block text-[11px] font-medium text-red-600">
+                      {timeState.greeting}!
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side: Live Digital Clock with Seconds (12h format AM/PM, IST) */}
+              <div className="flex items-center space-x-3">
+                <div className="bg-slate-900 text-white px-3 sm:px-4 py-2 rounded-xl shadow-md border border-slate-800 flex items-center space-x-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                  <div className="text-right">
+                    <div className="text-xs sm:text-sm font-bold font-mono tracking-wider">
+                      {timeState.timeStr}
+                    </div>
+                    <div className="text-[9px] uppercase tracking-wider text-slate-400 font-medium leading-none">
+                      Asia/Kolkata (IST)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Add Route Button for Admin */}
+                {currentUser.role === 'admin' && (
+                  <button
+                    onClick={() => {
+                      setEditingRoute(null);
+                      setIsAddRouteModalOpen(true);
+                    }}
+                    className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/30 transition-all active:scale-95"
+                  >
+                    <Icons.Plus />
+                    <span>New Route</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </header>
+
+          {/* ========================================================
+              SECTION 2: SMOOTH ANIMATED SIDEBAR MENU
+              ======================================================== */}
+          {/* Backdrop */}
+          {isSidebarOpen && (
+            <div 
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity"
+            ></div>
+          )}
+
+          {/* Sidebar Drawer */}
+          <aside
+            className={`fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-slate-900 text-white z-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${
+              isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
+            {/* Sidebar Top Header */}
+            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white shadow-lg shadow-red-900/50">
+                  <Icons.Bus />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white tracking-tight">Smart Bus Route</h2>
+                  <p className="text-[11px] text-red-400 font-mono">Digital Board System</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* User Profile Mini Card in Sidebar */}
+            <div className="p-5 mx-4 my-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center gap-3">
+              <img
+                src={currentUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser.displayName}`}
+                alt="Profile"
+                className="w-11 h-11 rounded-full object-cover border-2 border-red-500"
+              />
+              <div className="overflow-hidden">
+                <p className="text-sm font-bold text-white truncate">{currentUser.displayName}</p>
+                <p className="text-xs text-slate-400 truncate">{currentUser.email}</p>
+                <span className="inline-block mt-1 text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-red-600/30 text-red-300 border border-red-500/30">
+                  {currentUser.role}
+                </span>
+              </div>
+            </div>
+
+            {/* Navigation Links */}
+            <nav className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto">
+              <button
+                onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  activeTab === 'dashboard' ? 'bg-red-600 text-white shadow-md shadow-red-700/40' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Icons.Bus />
+                <span>Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('routes'); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  activeTab === 'routes' ? 'bg-red-600 text-white shadow-md shadow-red-700/40' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Icons.MapPin />
+                <span>All Bus Routes</span>
+                <span className="ml-auto text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                  {routes.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => { 
+                  setActiveTab('routes'); 
+                  setIsSidebarOpen(false);
+                  setTimeout(() => {
+                    const el = document.getElementById('route-search-input');
+                    if (el) el.focus();
+                  }, 150);
+                }}
+                className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+              >
+                <Icons.Search />
+                <span>Search Routes</span>
+              </button>
+
+              {/* Add New Route (Role Restrict: Admin Only) */}
+              <button
+                onClick={() => {
+                  if (currentUser.role !== 'admin') {
+                    showToast('Admin privilege required to add routes', 'error');
+                    return;
+                  }
+                  setIsSidebarOpen(false);
+                  setEditingRoute(null);
+                  setIsAddRouteModalOpen(true);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  currentUser.role === 'admin' 
+                    ? 'text-slate-300 hover:bg-slate-800 hover:text-white' 
+                    : 'text-slate-500 hover:bg-slate-850/50 cursor-not-allowed'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <Icons.Plus />
+                  <span>Add New Route</span>
+                </div>
+                {currentUser.role !== 'admin' && (
+                  <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Admin Only</span>
+                )}
+              </button>
+
+              {/* Edit Routes (Role Restrict: Admin Only) */}
+              <button
+                onClick={() => {
+                  if (currentUser.role !== 'admin') {
+                    showToast('Admin privilege required to edit routes', 'error');
+                    return;
+                  }
+                  setActiveTab('routes');
+                  setIsSidebarOpen(false);
+                  showToast('Click "Edit" on any route card to modify details');
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  currentUser.role === 'admin' 
+                    ? 'text-slate-300 hover:bg-slate-800 hover:text-white' 
+                    : 'text-slate-500 hover:bg-slate-850/50 cursor-not-allowed'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <Icons.Edit />
+                  <span>Edit Routes</span>
+                </div>
+                {currentUser.role !== 'admin' && (
+                  <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Admin Only</span>
+                )}
+              </button>
+
+              {/* Favourite Routes */}
+              <button
+                onClick={() => { setActiveTab('favorites'); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  activeTab === 'favorites' ? 'bg-red-600 text-white shadow-md shadow-red-700/40' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Icons.Heart filled={true} />
+                <span>Favourite Routes</span>
+                <span className="ml-auto text-xs px-2 py-0.5 rounded bg-red-950 text-red-300 font-mono">
+                  {favorites.length}
+                </span>
+              </button>
+
+              {/* Transport Announcements */}
+              <button
+                onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  activeTab === 'announcements' ? 'bg-red-600 text-white shadow-md shadow-red-700/40' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Icons.Bell />
+                <span>Announcements</span>
+                <span className="ml-auto text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                  {announcements.length}
+                </span>
+              </button>
+
+              {/* Profile & Settings / Appearance */}
+              <button
+                onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  activeTab === 'settings' ? 'bg-red-600 text-white shadow-md shadow-red-700/40' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Icons.Palette />
+                <span>Profile & Settings</span>
+              </button>
+            </nav>
+
+            {/* Sidebar Footer with Logout */}
+            <div className="p-4 border-t border-slate-800 space-y-2">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-red-400 hover:bg-red-950/40 hover:text-red-300 border border-red-900/40 transition-colors"
+              >
+                <Icons.LogOut />
+                <span>Logout</span>
+              </button>
+            </div>
+          </aside>
+
+          {/* ========================================================
+              MAIN CONTENT CONTAINER
+              ======================================================== */}
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full relative z-10">
+            {/* ROLE-SPECIFIC BANNER NOTICES */}
+            {currentUser.role === 'student' && (
+              <div className="mb-6 bg-gradient-to-r from-blue-900 to-indigo-950 border border-blue-700 text-white rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-600/40 border border-blue-400 flex items-center justify-center text-white shrink-0">
+                    <Icons.GraduationCap />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-blue-500/30 text-blue-200 border border-blue-400/40">My Assigned Commute</span>
+                      <span className="text-xs text-blue-300">• Hostels ↔ Science Block</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-white mt-1">Route 12B — Campus Express</h3>
+                    <p className="text-xs text-blue-200 mt-0.5">Departing every 10 minutes from West Gate Hostel Complex. Direct drop at Science Quadrangle.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => {
+                      const r = routes.find(x => x.id === 'route-12b');
+                      if (r) setViewRouteDetails(r);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md active:scale-95"
+                  >
+                    View Timetable & Stops
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {currentUser.role === 'teacher' && (
+              <div className="mb-6 bg-gradient-to-r from-emerald-900 to-teal-950 border border-emerald-700 text-white rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-600/40 border border-emerald-400 flex items-center justify-center text-white shrink-0">
+                    <Icons.BookOpen />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-200 border border-emerald-400/40">Faculty Transit</span>
+                      <span className="text-xs text-emerald-300">• Priority Faculty Commute</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-white mt-1">Route 42 — Staff Quarters Shuttle</h3>
+                    <p className="text-xs text-emerald-200 mt-0.5">Direct faculty service from Staff Enclave Gate A to University Senate / Admin Quad.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => {
+                      const r = routes.find(x => x.id === 'route-42');
+                      if (r) setViewRouteDetails(r);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md active:scale-95"
+                  >
+                    View Faculty Schedule
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ADMIN DASHBOARD CONTROLS & STATS BAR */}
+            {currentUser.role === 'admin' && activeTab === 'dashboard' && (
+              <div className="mb-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Admin Transit Command</h2>
+                    <p className="text-xs text-slate-500">Manage real-time digital route boards, physical board verification, and passenger advisories.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setShowAppearanceModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-semibold shadow-sm flex items-center gap-2 transition-all"
+                    >
+                      <Icons.Palette />
+                      <span>Appearance & Theme</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingRoute(null);
+                        setIsAddRouteModalOpen(true);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/30 flex items-center gap-2 transition-all active:scale-95"
+                    >
+                      <Icons.Plus />
+                      <span>Add New Bus Route</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="text-xs text-slate-500 font-medium">Total Digital Routes</div>
+                    <div className="text-2xl font-black font-mono text-slate-900 mt-1">{routes.length}</div>
+                    <div className="text-[11px] text-emerald-600 font-semibold mt-1">● 100% Active in System</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="text-xs text-slate-500 font-medium">Verified Board Routes</div>
+                    <div className="text-2xl font-black font-mono text-emerald-600 mt-1">
+                      {routes.filter(r => r.isVerified).length}
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-1">Cross-checked with board</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="text-xs text-slate-500 font-medium">Pending Verification</div>
+                    <div className="text-2xl font-black font-mono text-amber-500 mt-1">
+                      {routes.filter(r => !r.isVerified).length}
+                    </div>
+                    <div className="text-[11px] text-amber-600 font-semibold mt-1">Manual Audit Required</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="text-xs text-slate-500 font-medium">Active Announcements</div>
+                    <div className="text-2xl font-black font-mono text-slate-900 mt-1">{announcements.length}</div>
+                    <div className="text-[11px] text-slate-400 mt-1">Targeted to students & staff</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: ANNOUNCEMENTS */}
+            {activeTab === 'announcements' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Transport Notices & Advisories</h2>
+                    <p className="text-xs text-slate-500">Official bulletins issued by University Transport Office</p>
+                  </div>
+                  {currentUser.role === 'admin' && (
+                    <button
+                      onClick={() => showToast('Feature: Admin Announcement Composer', 'info')}
+                      className="px-3.5 py-2 rounded-xl bg-red-600 text-white text-xs font-bold"
+                    >
+                      + Publish Notice
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {announcements.map(ann => (
+                    <div key={ann.id} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded ${
+                            ann.priority === 'urgent' ? 'bg-red-100 text-red-700 border border-red-300' :
+                            ann.priority === 'important' ? 'bg-amber-100 text-amber-700 border border-amber-300' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            {ann.priority}
+                          </span>
+                          <span className="text-xs text-slate-400">• For {ann.targetAudience.toUpperCase()}</span>
+                        </div>
+                        <span className="text-xs text-slate-400 font-mono">{ann.date}</span>
+                      </div>
+                      <h4 className="text-base font-bold text-slate-900">{ann.title}</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">{ann.content}</p>
+                      <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+                        Issued by: {ann.author}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: SETTINGS & APPEARANCE */}
+            {activeTab === 'settings' && (
+              <div className="max-w-3xl mx-auto space-y-6">
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">User Profile</h3>
+                  <p className="text-xs text-slate-500 mb-6">Manage your authenticated credentials and assigned transit profile</p>
+
+                  <div className="flex items-center gap-5 pb-6 border-b border-slate-200">
+                    <img
+                      src={currentUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser.displayName}`}
+                      alt="Avatar"
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-red-600"
+                    />
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-900">{currentUser.displayName}</h4>
+                      <p className="text-xs text-slate-500">{currentUser.email}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold border border-red-300">
+                          {currentUser.role}
+                        </span>
+                        <span className="text-xs text-slate-400">UID: {currentUser.uid}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="py-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Appearance & Board Theme Customisation</h4>
+                        <p className="text-xs text-slate-500">Upload background images, adjust brightness, contrast, and filters</p>
+                      </div>
+                      <button
+                        onClick={() => setShowAppearanceModal(true)}
+                        className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-md"
+                      >
+                        Customize Theme
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Firebase Cloud Configuration</h4>
+                        <p className="text-xs text-slate-500">Connect Google Auth and Firestore credentials</p>
+                      </div>
+                      <button
+                        onClick={() => setShowFirebaseModal(true)}
+                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all"
+                      >
+                        Configure Firebase
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200 flex justify-end">
+                    <button
+                      onClick={handleLogout}
+                      className="px-5 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition-colors"
+                    >
+                      Sign Out of {currentUser.role.toUpperCase()} Portal
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: DASHBOARD & ALL ROUTES (MAIN BUS ROUTE BOARD) */}
+            {(activeTab === 'dashboard' || activeTab === 'routes' || activeTab === 'favorites') && (
+              <div className="space-y-6">
+                {/* Search & Filter Control Bar */}
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                  {/* Clean Search Bar */}
+                  <div className="relative flex-1">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Icons.Search />
+                    </span>
+                    <input
+                      id="route-search-input"
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search routes by route number, destination, stop, bus no, or driver..."
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500 text-sm placeholder-slate-400 transition-all"
+                    />
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs text-slate-400 hover:text-slate-600"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+                    {['All', 'Campus & University', 'City Express', 'Metro Feeder', 'Suburban / Outstation', 'Night Service'].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                          selectedCategory === cat
+                            ? 'bg-red-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Status / Verification Filter */}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="py-2.5 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/30"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Verified">Verified Routes Only</option>
+                      <option value="Unverified">Needs Verification</option>
+                      <option value="On Time">On Time</option>
+                      <option value="Delayed">Delayed</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Section Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                      <span>{activeTab === 'favorites' ? 'Starred Favourite Routes' : 'Digital Bus Route Board'}</span>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 font-mono font-bold">
+                        {filteredRoutes.length} Available
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Digitized schedule records inspired by physical transport route boards
+                    </p>
+                  </div>
+
+                  {currentUser.role === 'admin' && (
+                    <button
+                      onClick={() => {
+                        setEditingRoute(null);
+                        setIsAddRouteModalOpen(true);
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/30 flex items-center gap-1.5 transition-all active:scale-95"
+                    >
+                      <Icons.Plus />
+                      <span>Add Route</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* ROUTE CARDS GRID */}
+                {filteredRoutes.length === 0 ? (
+                  <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm max-w-lg mx-auto my-8">
+                    <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 mx-auto flex items-center justify-center mb-4">
+                      <Icons.Bus />
+                    </div>
+                    <h4 className="text-lg font-bold text-slate-900">No Bus Routes Found</h4>
+                    <p className="text-xs text-slate-500 mt-1 mb-6">
+                      {searchQuery ? `No routes match query "${searchQuery}". Try searching for another destination or stop.` : 'No routes available in this category.'}
+                    </p>
+                    <button
+                      onClick={() => { setSearchQuery(''); setSelectedCategory('All'); setStatusFilter('All'); }}
+                      className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+                    >
+                      Reset All Filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredRoutes.map(route => {
+                      const isFav = favorites.includes(route.id);
+                      return (
+                        <div
+                          key={route.id}
+                          onClick={() => setViewRouteDetails(route)}
+                          className="group bg-white rounded-2xl border border-slate-200/90 hover:border-red-400 custom-shadow-card hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-pointer relative"
+                        >
+                          {/* Top Red-and-White Accent Header Bar */}
+                          <div className="px-5 pt-5 pb-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                            <div className="flex items-center justify-between">
+                              {/* Route Number Badge (Prominent physical board styling) */}
+                              <div className="flex items-center gap-2.5">
+                                <div className="px-3.5 py-1.5 rounded-lg bg-red-600 text-white font-mono font-black text-xl tracking-tight shadow-md shadow-red-600/30 flex items-center gap-1">
+                                  <span>{route.routeNumber}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-semibold block">
+                                    {route.category}
+                                  </span>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    {route.isVerified ? (
+                                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold border border-emerald-200">
+                                        <Icons.CheckBadge />
+                                        <span>Verified Board</span>
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded font-semibold border border-amber-200">
+                                        <Icons.AlertTriangle />
+                                        <span>Needs Verification</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons: Favorite + Admin Edit/Delete */}
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={(e) => toggleFavorite(route.id, e)}
+                                  className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                                  title={isFav ? "Remove Favourite" : "Add Favourite"}
+                                >
+                                  <Icons.Heart filled={isFav} />
+                                </button>
+
+                                {currentUser.role === 'admin' && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingRoute(route);
+                                      }}
+                                      className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-blue-600 transition-colors"
+                                      title="Edit Route"
+                                    >
+                                      <Icons.Edit />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setRouteToDelete(route);
+                                      }}
+                                      className="p-2 rounded-lg hover:bg-red-50 text-slate-600 hover:text-red-600 transition-colors"
+                                      title="Delete Route"
+                                    >
+                                      <Icons.Trash />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Prominent Route Destination & Source */}
+                            <h4 className="text-base font-bold text-slate-900 group-hover:text-red-600 transition-colors mt-3 leading-snug">
+                              {route.routeName}
+                            </h4>
+                          </div>
+
+                          {/* Intermediate Stops Chips */}
+                          <div className="px-5 py-3 bg-white">
+                            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                              <Icons.MapPin />
+                              <span>Key Route Stops ({route.intermediateStops.length})</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 max-h-16 overflow-hidden">
+                              {route.intermediateStops.slice(0, 4).map((stop, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium truncate max-w-[150px]"
+                                >
+                                  {stop}
+                                </span>
+                              ))}
+                              {route.intermediateStops.length > 4 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-mono">
+                                  +{route.intermediateStops.length - 4} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card Footer: Timings, Bus No, Status */}
+                          <div className="px-5 py-3.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1 text-slate-500 font-medium">
+                                <Icons.Clock />
+                                <span>{route.morningTiming.split(' - ')[0]} • {route.frequency}</span>
+                              </div>
+                              <div className="text-[11px] font-mono text-slate-400">
+                                Bus: <span className="text-slate-700 font-semibold">{route.busNumber}</span>
+                              </div>
+                            </div>
+
+                            {/* Status Indicator */}
+                            <div className="text-right">
+                              <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                                route.status === 'On Time' ? 'bg-emerald-100 text-emerald-800' :
+                                route.status === 'Departing Soon' ? 'bg-blue-100 text-blue-800' :
+                                route.status === 'In Transit' ? 'bg-purple-100 text-purple-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {route.status} {route.delayMinutes ? `(+${route.delayMinutes}m)` : ''}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+
+          {/* ========================================================
+              SECTION 4: ROUTE DETAILS MODAL (FULL POPUP)
+              ======================================================== */}
+          {viewRouteDetails && (
+            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+                {/* Modal Top Header Banner */}
+                <div className="p-6 bg-gradient-to-r from-red-600 to-red-800 text-white flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="px-4 py-2 rounded-xl bg-white text-red-700 font-mono font-black text-2xl shadow-md">
+                      {viewRouteDetails.routeNumber}
+                    </span>
+                    <div>
+                      <span className="text-xs font-mono uppercase tracking-wider text-red-200">
+                        {viewRouteDetails.category}
+                      </span>
+                      <h3 className="text-lg font-bold leading-tight mt-0.5">
+                        {viewRouteDetails.routeName}
+                      </h3>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setViewRouteDetails(null)}
+                    className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-6 overflow-y-auto space-y-6 flex-1">
+                  {/* Verification Status Warning if not verified */}
+                  {!viewRouteDetails.isVerified && (
+                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+                      <Icons.AlertTriangle />
+                      <div className="text-xs text-amber-800">
+                        <p className="font-bold">Manual Physical Board Verification Pending</p>
+                        <p className="mt-0.5">{viewRouteDetails.verificationNotes || 'Some intermediate stop names or timetables are unclear on the original physical route board and await field auditor verification.'}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Timetable & Schedule Details */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <span className="text-slate-400 block font-medium">Morning Shift</span>
+                      <span className="font-bold text-slate-800 mt-0.5 block">{viewRouteDetails.morningTiming}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <span className="text-slate-400 block font-medium">Evening Shift</span>
+                      <span className="font-bold text-slate-800 mt-0.5 block">{viewRouteDetails.eveningTiming}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <span className="text-slate-400 block font-medium">Frequency</span>
+                      <span className="font-bold text-slate-800 mt-0.5 block">{viewRouteDetails.frequency}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <span className="text-slate-400 block font-medium">Standard Fare</span>
+                      <span className="font-bold text-slate-800 mt-0.5 block">{viewRouteDetails.fare}</span>
+                    </div>
+                  </div>
+
+                  {/* Step-by-Step Stop Timeline */}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                      <Icons.MapPin />
+                      <span>Sequential Transit Stops ({viewRouteDetails.intermediateStops.length})</span>
+                    </h4>
+                    <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-red-200">
+                      {viewRouteDetails.intermediateStops.map((stop, idx) => (
+                        <div key={idx} className="relative flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-3">
+                            <span className="absolute -left-6 w-5 h-5 rounded-full bg-white border-2 border-red-600 flex items-center justify-center font-mono text-[9px] font-bold text-red-600">
+                              {idx + 1}
+                            </span>
+                            <span className={`font-medium ${idx === 0 || idx === viewRouteDetails.intermediateStops.length - 1 ? 'font-bold text-slate-900 text-sm' : 'text-slate-700'}`}>
+                              {stop}
+                            </span>
+                          </div>
+                          {idx === 0 && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">ORIGIN</span>
+                          )}
+                          {idx === viewRouteDetails.intermediateStops.length - 1 && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold">TERMINUS</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bus & Driver Contact Card */}
+                  <div className="p-4 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <div className="text-[11px] text-slate-400 uppercase font-mono">Assigned Bus & Fleet In-charge</div>
+                      <div className="text-sm font-bold mt-0.5 flex items-center gap-2">
+                        <span>Bus: {viewRouteDetails.busNumber}</span>
+                        <span className="text-slate-500">•</span>
+                        <span>Driver: {viewRouteDetails.driverName}</span>
+                      </div>
+                      <div className="text-xs text-slate-400 mt-0.5">Capacity: {viewRouteDetails.capacity} Passengers • Current Load: {viewRouteDetails.currentOccupancy}</div>
+                    </div>
+                    <a
+                      href={`tel:${viewRouteDetails.driverPhone}`}
+                      className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-2 shrink-0 transition-all justify-center"
+                    >
+                      <Icons.Phone />
+                      <span>{viewRouteDetails.driverPhone}</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-400 font-mono">Distance: ~{viewRouteDetails.totalDistanceKm} km</span>
+                  <div className="flex items-center gap-2">
+                    {currentUser.role === 'admin' && (
+                      <button
+                        onClick={() => {
+                          const r = viewRouteDetails;
+                          setViewRouteDetails(null);
+                          setEditingRoute(r);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold"
+                      >
+                        Edit This Route
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setViewRouteDetails(null)}
+                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
+                    >
+                      Close Window
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              SECTION 5: ROUTE EDIT / ADD FORM MODAL (ADMIN ONLY)
+              ======================================================== */}
+          {(isAddRouteModalOpen || editingRoute) && (
+            <RouteFormModal
+              route={editingRoute}
+              onClose={() => {
+                setIsAddRouteModalOpen(false);
+                setEditingRoute(null);
+              }}
+              onSave={handleSaveRoute}
+            />
+          )}
+
+          {/* CONFIRM DELETE DIALOG */}
+          {routeToDelete && (
+            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-4">
+                  <Icons.Trash />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Delete Route {routeToDelete.routeNumber}?</h3>
+                <p className="text-xs text-slate-500 mt-1 mb-6">
+                  Are you sure you want to permanently remove <span className="font-semibold text-slate-800">{routeToDelete.routeName}</span> from the digital transit board? This action will sync across all commuter boards.
+                </p>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setRouteToDelete(null)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteRoute}
+                    className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/30"
+                  >
+                    Confirm Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              SECTION 6: APPEARANCE & THEME CUSTOMIZATION MODAL
+              ======================================================== */}
+          {showAppearanceModal && (
+            <AppearanceModal
+              theme={theme}
+              onUpdateTheme={(newTheme) => {
+                setTheme(newTheme);
+                showToast('Appearance settings saved persistently!');
+              }}
+              onClose={() => setShowAppearanceModal(false)}
+            />
+          )}
+
+          {/* FIREBASE CONFIGURATION MODAL */}
+          {showFirebaseModal && (
+            <FirebaseConfigModal 
+              onClose={() => setShowFirebaseModal(false)}
+              showToast={showToast}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // --- APPEARANCE & THEME MODAL COMPONENT ---
+    function AppearanceModal({ theme, onUpdateTheme, onClose }) {
+      const [localTheme, setLocalTheme] = useState({ ...theme });
+      const [previewUrl, setPreviewUrl] = useState(theme.backgroundImageUrl);
+      const fileInputRef = useRef(null);
+
+      const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            setPreviewUrl(reader.result);
+            setLocalTheme(prev => ({ ...prev, backgroundImageUrl: reader.result }));
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      const handlePreset = (preset) => {
+        setLocalTheme(prev => ({ ...prev, filterPreset: preset }));
+      };
+
+      const handleSave = () => {
+        onUpdateTheme(localTheme);
+        onClose();
+      };
+
+      const handleReset = () => {
+        setLocalTheme(DEFAULT_THEME);
+        setPreviewUrl(null);
+      };
+
+      const getPreviewFilter = () => {
+        let f = `brightness(${localTheme.brightness}%) contrast(${localTheme.contrast}%) saturate(${localTheme.saturation}%) hue-rotate(${localTheme.hueRotate}deg)`;
+        if (localTheme.filterPreset === 'grayscale') f += ' grayscale(100%)';
+        else if (localTheme.filterPreset === 'vintage') f += ' sepia(70%) contrast(110%)';
+        else if (localTheme.filterPreset === 'warm') f += ' sepia(30%) saturate(140%) hue-rotate(-15deg)';
+        else if (localTheme.filterPreset === 'cool') f += ' hue-rotate(180deg) saturate(90%)';
+        else if (localTheme.filterPreset === 'high-contrast') f += ' contrast(160%) brightness(110%)';
+        return f;
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold">Appearance & Theme Customisation</h3>
+                <p className="text-xs text-slate-400">Personalize dashboard background, image filters, and brand accent colour</p>
+              </div>
+              <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800">
+              {/* Image Upload Box */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                  Upload Background Image
+                </label>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current.click()}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    <Icons.Plus />
+                    <span>Upload Image from Device</span>
+                  </button>
+                  {previewUrl && (
+                    <button
+                      onClick={() => {
+                        setPreviewUrl(null);
+                        setLocalTheme(prev => ({ ...prev, backgroundImageUrl: null }));
+                      }}
+                      className="px-3 py-2 text-xs font-semibold text-red-600 hover:underline"
+                    >
+                      Remove Image
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Live Preview Box */}
+              {previewUrl && (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-slate-500 flex items-center justify-between">
+                    <span>Live Filter & Positioning Preview</span>
+                    <span className="font-mono text-[11px] text-red-600">Overlay: {localTheme.overlayOpacity}%</span>
+                  </div>
+                  <div className="h-44 rounded-2xl overflow-hidden relative border border-slate-300 shadow-inner bg-slate-900 flex items-center justify-center">
+                    <img
+                      src={previewUrl}
+                      alt="Preview"
+                      className="w-full h-full"
+                      style={{
+                        objectFit: localTheme.imageFit,
+                        objectPosition: localTheme.imagePosition,
+                        filter: getPreviewFilter(),
+                      }}
+                    />
+                    <div 
+                      className="absolute inset-0 bg-slate-950 pointer-events-none"
+                      style={{ opacity: localTheme.overlayOpacity / 100 }}
+                    ></div>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-4 pointer-events-none">
+                      <span className="text-xs font-mono font-bold uppercase tracking-widest bg-red-600/80 px-2.5 py-0.5 rounded">
+                        Text Contrast Guarantee
+                      </span>
+                      <p className="text-sm font-bold mt-1">Route 1A • Central Bus Terminus</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Placement & Fit Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Image Placement</label>
+                  <select
+                    value={localTheme.backgroundPlacement}
+                    onChange={(e) => setLocalTheme(prev => ({ ...prev, backgroundPlacement: e.target.value }))}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold"
+                  >
+                    <option value="dashboard">Entire Dashboard Background</option>
+                    <option value="header">Header Banner</option>
+                    <option value="route-board">Route Board Card Container</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Image Fit</label>
+                  <select
+                    value={localTheme.imageFit}
+                    onChange={(e) => setLocalTheme(prev => ({ ...prev, imageFit: e.target.value }))}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold"
+                  >
+                    <option value="cover">Cover (Fill Screen)</option>
+                    <option value="contain">Contain (Full Image Visible)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Positioning</label>
+                  <select
+                    value={localTheme.imagePosition}
+                    onChange={(e) => setLocalTheme(prev => ({ ...prev, imagePosition: e.target.value }))}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold"
+                  >
+                    <option value="center">Center</option>
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Overlay Opacity Slider */}
+              <div>
+                <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                  <span>Overlay Dark Tint Opacity (Ensures Text Readability)</span>
+                  <span className="font-mono text-red-600">{localTheme.overlayOpacity}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="90"
+                  value={localTheme.overlayOpacity}
+                  onChange={(e) => setLocalTheme(prev => ({ ...prev, overlayOpacity: Number(e.target.value) }))}
+                  className="w-full accent-red-600"
+                />
+              </div>
+
+              {/* Adjustments: Brightness, Contrast, Saturation, Hue */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                    <span>Brightness</span>
+                    <span className="font-mono">{localTheme.brightness}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="150"
+                    value={localTheme.brightness}
+                    onChange={(e) => setLocalTheme(prev => ({ ...prev, brightness: Number(e.target.value) }))}
+                    className="w-full accent-red-600"
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                    <span>Contrast</span>
+                    <span className="font-mono">{localTheme.contrast}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="150"
+                    value={localTheme.contrast}
+                    onChange={(e) => setLocalTheme(prev => ({ ...prev, contrast: Number(e.target.value) }))}
+                    className="w-full accent-red-600"
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                    <span>Saturation</span>
+                    <span className="font-mono">{localTheme.saturation}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="200"
+                    value={localTheme.saturation}
+                    onChange={(e) => setLocalTheme(prev => ({ ...prev, saturation: Number(e.target.value) }))}
+                    className="w-full accent-red-600"
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                    <span>Color Tone / Hue Rotate</span>
+                    <span className="font-mono">{localTheme.hueRotate}°</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    value={localTheme.hueRotate}
+                    onChange={(e) => setLocalTheme(prev => ({ ...prev, hueRotate: Number(e.target.value) }))}
+                    className="w-full accent-red-600"
+                  />
+                </div>
+              </div>
+
+              {/* Preset Filters */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-2">Preset Photographic Filters</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'none', label: 'Original' },
+                    { id: 'grayscale', label: 'B&W Grayscale' },
+                    { id: 'vintage', label: 'Vintage Sepia' },
+                    { id: 'warm', label: 'Warm Sunlight' },
+                    { id: 'cool', label: 'Cool Cyan' },
+                    { id: 'high-contrast', label: 'High Contrast' },
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => handlePreset(f.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                        localTheme.filterPreset === f.id
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Accent Color Selection */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-2">Website Accent Colour</label>
+                <div className="flex items-center gap-3">
+                  {[
+                    { color: '#dc2626', name: 'Classic Crimson Red' },
+                    { color: '#e11d48', name: 'Ruby Rose' },
+                    { color: '#991b1b', name: 'Bus Maroon' },
+                    { color: '#d97706', name: 'Transport Amber' },
+                    { color: '#1e40af', name: 'Deep Navy' },
+                    { color: '#059669', name: 'Forest Emerald' },
+                  ].map(c => (
+                    <button
+                      key={c.color}
+                      onClick={() => setLocalTheme(prev => ({ ...prev, accentColor: c.color }))}
+                      className={`w-9 h-9 rounded-xl border-2 transition-transform ${
+                        localTheme.accentColor === c.color ? 'scale-110 border-slate-900 shadow-md ring-2 ring-slate-400' : 'border-transparent hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: c.color }}
+                      title={c.name}
+                    />
+                  ))}
+                  <div className="ml-2 flex items-center gap-1.5 text-xs">
+                    <span className="text-slate-400">Custom:</span>
+                    <input
+                      type="color"
+                      value={localTheme.accentColor}
+                      onChange={(e) => setLocalTheme(prev => ({ ...prev, accentColor: e.target.value }))}
+                      className="w-8 h-8 rounded cursor-pointer border border-slate-200"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <button
+                onClick={handleReset}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900"
+              >
+                Reset to Default
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/30"
+                >
+                  Save Theme Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- ROUTE ADD / EDIT FORM MODAL COMPONENT ---
+    function RouteFormModal({ route, onClose, onSave }) {
+      const [formData, setFormData] = useState({
+        routeNumber: route?.routeNumber || '',
+        routeName: route?.routeName || '',
+        source: route?.source || '',
+        destination: route?.destination || '',
+        category: route?.category || 'City Express',
+        intermediateStops: route?.intermediateStops ? route.intermediateStops.join(', ') : '',
+        morningTiming: route?.morningTiming || '07:00 AM - 12:00 PM',
+        eveningTiming: route?.eveningTiming || '04:00 PM - 09:30 PM',
+        frequency: route?.frequency || 'Every 20 mins',
+        busNumber: route?.busNumber || 'DL-01-AB-0000',
+        driverName: route?.driverName || '',
+        driverPhone: route?.driverPhone || '+91 98000 00000',
+        capacity: route?.capacity || 50,
+        currentOccupancy: route?.currentOccupancy || 'Medium',
+        status: route?.status || 'On Time',
+        isVerified: route ? route.isVerified : true,
+        verificationNotes: route?.verificationNotes || '',
+        fare: route?.fare || '₹20',
+        totalDistanceKm: route?.totalDistanceKm || 15
+      });
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!formData.routeNumber || !formData.routeName || !formData.source || !formData.destination) {
+          alert('Please fill in Route Number, Name, Origin, and Destination.');
+          return;
+        }
+
+        const stopsArray = formData.intermediateStops
+          .split(',')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+
+        onSave({
+          ...formData,
+          intermediateStops: stopsArray.length > 0 ? stopsArray : [formData.source, formData.destination]
+        });
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold">{route ? `Edit Route ${route.routeNumber}` : 'Add New Bus Route'}</h3>
+                <p className="text-xs text-slate-400">Save route information to persistent digital database</p>
+              </div>
+              <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            {/* Form Fields */}
+            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Route Number *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.routeNumber}
+                    onChange={(e) => setFormData({ ...formData, routeNumber: e.target.value })}
+                    placeholder="e.g. 1A, 25C, 70"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-500 font-mono font-bold"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="font-bold text-slate-700 block mb-1">Route Title / Destination *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.routeName}
+                    onChange={(e) => setFormData({ ...formData, routeName: e.target.value })}
+                    placeholder="e.g. Central Station ↔ North Campus"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Origin / Source *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.source}
+                    onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Primary Destination *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.destination}
+                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Intermediate Stops (Comma separated)</label>
+                <textarea
+                  rows="2"
+                  value={formData.intermediateStops}
+                  onChange={(e) => setFormData({ ...formData, intermediateStops: e.target.value })}
+                  placeholder="Railway Station, Civil Hospital, Science Quad, North Gate"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-500"
+                ></textarea>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Category</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200"
+                  >
+                    <option value="Campus & University">Campus & University</option>
+                    <option value="City Express">City Express</option>
+                    <option value="Metro Feeder">Metro Feeder</option>
+                    <option value="Suburban / Outstation">Suburban / Outstation</option>
+                    <option value="Night Service">Night Service</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Morning Hours</label>
+                  <input
+                    type="text"
+                    value={formData.morningTiming}
+                    onChange={(e) => setFormData({ ...formData, morningTiming: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Evening Hours</label>
+                  <input
+                    type="text"
+                    value={formData.eveningTiming}
+                    onChange={(e) => setFormData({ ...formData, eveningTiming: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Assigned Bus Number</label>
+                  <input
+                    type="text"
+                    value={formData.busNumber}
+                    onChange={(e) => setFormData({ ...formData, busNumber: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Driver In-charge Name</label>
+                  <input
+                    type="text"
+                    value={formData.driverName}
+                    onChange={(e) => setFormData({ ...formData, driverName: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Driver Phone Number</label>
+                  <input
+                    type="text"
+                    value={formData.driverPhone}
+                    onChange={(e) => setFormData({ ...formData, driverPhone: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Current Transit Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200"
+                  >
+                    <option value="On Time">On Time</option>
+                    <option value="Departing Soon">Departing Soon</option>
+                    <option value="In Transit">In Transit</option>
+                    <option value="Delayed">Delayed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Standard Fare</label>
+                  <input
+                    type="text"
+                    value={formData.fare}
+                    onChange={(e) => setFormData({ ...formData, fare: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Distance (Km)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formData.totalDistanceKm}
+                    onChange={(e) => setFormData({ ...formData, totalDistanceKm: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200"
+                  />
+                </div>
+              </div>
+
+              {/* Physical Route Board Verification Toggle */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-slate-800">Physical Board Verification Status</span>
+                    <p className="text-[11px] text-slate-500">Mark verified if fully checked against physical route board</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isVerified}
+                      onChange={(e) => setFormData({ ...formData, isVerified: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+                {!formData.isVerified && (
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Audit Notes (What requires verification?)</label>
+                    <input
+                      type="text"
+                      value={formData.verificationNotes}
+                      onChange={(e) => setFormData({ ...formData, verificationNotes: e.target.value })}
+                      placeholder="e.g. Faded intermediate stop name near Civil Lines on original board."
+                      className="w-full p-2 rounded-lg border border-slate-200 text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-md shadow-red-600/30"
+                >
+                  Save Route Information
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // --- FIREBASE CREDENTIALS CONFIG MODAL ---
+    function FirebaseConfigModal({ onClose, showToast }) {
+      const [config, setConfig] = useState(() => {
+        const stored = localStorage.getItem('smart_bus_firebase_config');
+        return stored ? JSON.parse(stored) : {
+          apiKey: '',
+          authDomain: '',
+          projectId: '',
+          storageBucket: '',
+          messagingSenderId: '',
+          appId: ''
+        };
+      });
+
+      const handleSave = (e) => {
+        e.preventDefault();
+        localStorage.setItem('smart_bus_firebase_config', JSON.stringify(config));
+        showToast('Firebase configuration saved! Ready for Google Sign-in.');
+        onClose();
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-150 text-white">
+            <div className="p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <span>Firebase Credentials Setup</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-600/30 text-red-400 border border-red-500/30">Auth & Firestore</span>
+                </h3>
+                <p className="text-xs text-slate-400">Configure your Google Cloud Firebase project for persistent cloud auth</p>
+              </div>
+              <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <form onSubmit={handleSave} className="p-6 space-y-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 text-[11px] leading-relaxed">
+                <span className="font-bold text-red-400">How to get these keys:</span>
+                <ol className="list-decimal list-inside mt-1 space-y-0.5 text-slate-400">
+                  <li>Visit <a href="https://console.firebase.google.com" target="_blank" className="text-red-400 underline">console.firebase.google.com</a> & create or select a project.</li>
+                  <li>Enable <strong>Authentication → Google Sign-In</strong>.</li>
+                  <li>Enable <strong>Cloud Firestore</strong> in test or production mode.</li>
+                  <li>Project Settings → General → Web App (<code>&lt;/&gt;</code>) → Copy configuration snippet.</li>
+                </ol>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-300 block mb-1">API Key *</label>
+                <input
+                  type="text"
+                  required
+                  value={config.apiKey}
+                  onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
+                  placeholder="AIzaSy..."
+                  className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-red-500 font-mono text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="font-bold text-slate-300 block mb-1">Auth Domain *</label>
+                  <input
+                    type="text"
+                    required
+                    value={config.authDomain}
+                    onChange={(e) => setConfig({ ...config, authDomain: e.target.value })}
+                    placeholder="your-project.firebaseapp.com"
+                    className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 font-mono text-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300 block mb-1">Project ID *</label>
+                  <input
+                    type="text"
+                    required
+                    value={config.projectId}
+                    onChange={(e) => setConfig({ ...config, projectId: e.target.value })}
+                    placeholder="your-project-id"
+                    className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 font-mono text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="font-bold text-slate-300 block mb-1">Storage Bucket</label>
+                  <input
+                    type="text"
+                    value={config.storageBucket || ''}
+                    onChange={(e) => setConfig({ ...config, storageBucket: e.target.value })}
+                    placeholder="your-project.appspot.com"
+                    className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 font-mono text-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300 block mb-1">App ID</label>
+                  <input
+                    type="text"
+                    value={config.appId || ''}
+                    onChange={(e) => setConfig({ ...config, appId: e.target.value })}
+                    placeholder="1:1234567890:web:abcdef..."
+                    className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 font-mono text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-bold"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-md shadow-red-600/30"
+                >
+                  Save Configuration
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // Render App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
